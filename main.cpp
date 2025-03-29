@@ -176,4 +176,6 @@ int main() {
         }
         else std::cout << "No significant speed increase." << std::endl;
     }
+
+    system("pause");
 }
