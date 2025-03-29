@@ -9,12 +9,14 @@
 #include <list>
 #include <iomanip>
 
-#define MAX_NUMBER 100000
-#define THREAD_COUNT 4
+//#define MAX_NUMBER 100000
+//#define THREAD_COUNT 4
 
 std::mutex numberAccess;
 std::mutex primeAccess;
 
+int MAX_NUMBER = 100000;
+int THREAD_COUNT = 4;
 
 /** This is a very inefficient method to determine if a number is prime.
  *
@@ -99,6 +101,14 @@ void progT(std::list<int> &numL) {
 }
 
 int main() {
+
+
+    std::cout << "Checking a range of numbers to see if they are prime." << std::endl;
+    std::cout << "Enter the upper bound of range (above 200000 may be very slow): ";
+    std::cin >> MAX_NUMBER;
+    std::cout << "Enter the number of threads to use for parallel processing: ";
+    std::cin >> THREAD_COUNT;
+
     std::vector<int> primeV1;
     std::vector<int> primeV2;
 
@@ -120,10 +130,11 @@ int main() {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     sProgTracker.join();
-    std::cout << std::endl << "First 100 primes found: ";
-    for (int i = 0; i < primeV2.size() && i < 100; i++) {
+    std::cout << std::endl << "First 10 primes found: ";
+    for (int i = 0; i < primeV2.size() && i < 10; i++) {
         std::cout << primeV2[i] << " ";
     }
+    std::cout << " Largest prime found: " << primeV2.back();
     std::cout << std::endl << "Time taken: " << duration2.count() << " milliseconds" << std::endl;
 
     std::thread primeFinders[THREAD_COUNT];
@@ -141,15 +152,16 @@ int main() {
     end = std::chrono::high_resolution_clock::now();
     auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     tProgTracker.join();
-    std::cout << std::endl << "First 100 primes found: ";
-    for (int i = 0; i < primeV1.size() && i < 100; i++) {
+    std::cout << std::endl << "First 10 primes found: ";
+    for (int i = 0; i < primeV1.size() && i < 10; i++) {
         std::cout << primeV1[i] << " ";
     }
+    std::cout << " Largest prime found: " << primeV1.back();
     std::cout << std::endl << "Time taken: " << duration1.count() << " milliseconds" << std::endl;
 
     int timeDiff = duration2.count() - duration1.count();
     float fasterFactor = (float) duration2.count() / (float) duration1.count();
-    std::cout << std::endl << "Time difference is " << timeDiff << " milliseconds or ";
+    std::cout << "Time difference is " << timeDiff << " milliseconds or ";
     std::cout << std::setprecision(2);
     std::cout << fasterFactor << "x faster." << std::endl;
 
