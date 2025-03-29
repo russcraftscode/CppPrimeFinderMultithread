@@ -8,6 +8,7 @@
 #include <vector>
 #include <list>
 #include <iomanip>
+#include <mutex>
 
 std::mutex numberAccess;
 std::mutex primeAccess;
