@@ -92,13 +92,14 @@ void dispProg(int p, int t) {
  *
  * @param numL list of numbers being worked on
  */
-void progT(std::list<int> &numL) {
+void progT(std::vector<int> &primeV, std::list<int> &numL) {
     while (numL.size() > 0) {
         dispProg(MAX_NUMBER - numL.size(), MAX_NUMBER);
+        std::cout << " Largest Prime Found: " << primeV.back();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     dispProg(1, 1); // added this so it always ends at 100%
-
+    std::cout << " Largest Prime Found: " << primeV.back();
 }
 
 void resetList(std::list<int> &numL){
@@ -127,18 +128,13 @@ int main() {
     std::cout << std::endl << "Establishing Baseline with non-multithreading test" << std::endl;
     std::cout << "Finding primes between 2-" << MAX_NUMBER
               << " with sequential checking: " << std::endl;
-    std::thread sProgTracker(progT, std::ref(numberL));
+    std::thread sProgTracker(progT, std::ref(primeV), std::ref(numberL));
     auto start = std::chrono::high_resolution_clock::now();
     isPrimeS(primeV, numberL);
     auto end = std::chrono::high_resolution_clock::now();
     durations.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
     //auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     sProgTracker.join();
-    std::cout << std::endl << "First 10 primes found: ";
-    for (int i = 0; i < primeV.size() && i < 10; i++) {
-        std::cout << primeV[i] << " ";
-    }
-    std::cout << " Largest prime found: " << primeV.back();
     std::cout << std::endl << "Time taken: " << durations.back().count() << " milliseconds" << std::endl;
 
     // multi thread tests
@@ -148,7 +144,7 @@ int main() {
         std::thread primeFinders[THREAD_COUNT];
         std::cout << std::endl << "Finding primes between 2-" << MAX_NUMBER
                   << " with " << THREAD_COUNT << " threads checking in parallel: " << std::endl;
-        std::thread tProgTracker(progT, std::ref(numberL));
+        std::thread tProgTracker(progT, std::ref(primeV), std::ref(numberL));
         start = std::chrono::high_resolution_clock::now();
 
         for (int i = 0; i < THREAD_COUNT; i++) {
@@ -160,11 +156,6 @@ int main() {
         end = std::chrono::high_resolution_clock::now();
         durations.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
         tProgTracker.join();
-        std::cout << std::endl << "First 10 primes found: ";
-        for (int i = 0; i < primeV.size() && i < 10; i++) {
-            std::cout << primeV[i] << " ";
-        }
-        std::cout << " Largest prime found: " << primeV.back();
         std::cout << std::endl << "Time taken: " << durations.back().count() << " milliseconds" << std::endl;
 
         int timeDiff = durations.front().count() - durations.back().count();
@@ -172,7 +163,7 @@ int main() {
         if(timeDiff > 0) {
             std::cout << "Time difference is " << timeDiff << " milliseconds or ";
             std::cout << std::setprecision(2);
-            std::cout << fasterFactor << "x faster." << std::endl;
+            std::cout << fasterFactor << "x faster than baseline." << std::endl;
         }
         else std::cout << "No significant speed increase." << std::endl;
     }
