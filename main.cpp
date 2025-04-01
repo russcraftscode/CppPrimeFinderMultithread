@@ -8,14 +8,13 @@
 #include <vector>
 #include <list>
 #include <iomanip>
-
-//#define MAX_NUMBER 100000
-//#define THREAD_COUNT 4
+#include <mutex>
 
 std::mutex numberAccess;
 std::mutex primeAccess;
 
 int MAX_NUMBER = 100000;
+int THREAD_MAX = 4;
 int THREAD_COUNT = 4;
 
 /** This is a very inefficient method to determine if a number is prime.
@@ -93,76 +92,81 @@ void dispProg(int p, int t) {
  *
  * @param numL list of numbers being worked on
  */
-void progT(std::list<int> &numL) {
+void progT(std::vector<int> &primeV, std::list<int> &numL) {
     while (numL.size() > 0) {
         dispProg(MAX_NUMBER - numL.size(), MAX_NUMBER);
+        std::cout << " Largest Prime Found: " << primeV.back();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    dispProg(1, 1); // added this so it always ends at 100%
+    std::cout << " Largest Prime Found: " << primeV.back();
+}
+
+void resetList(std::list<int> &numL){
+    numL.clear();
+    for (int i = 3; i < MAX_NUMBER; i++) {
+        numL.push_back(i);
     }
 }
 
 int main() {
 
-
     std::cout << "Checking a range of numbers to see if they are prime." << std::endl;
-    std::cout << "Enter the upper bound of range (above 200000 may be very slow): ";
+    std::cout << "Enter the upper bound of range without commas:" << std::endl;
+    std::cout << "(above 200,000 may be very slow, below 50,000 may not take long enough to give meaningful results): ";
     std::cin >> MAX_NUMBER;
-    std::cout << "Enter the number of threads to use for parallel processing: ";
-    std::cin >> THREAD_COUNT;
+    std::cout << "Enter the max number of threads to be used in a test: ";
+    std::cin >> THREAD_MAX;
 
-    std::vector<int> primeV1;
-    std::vector<int> primeV2;
+    std::vector<int> primeV;
+    primeV.reserve(MAX_NUMBER);
+    std::list<int> numberL;
+    std::vector<std::chrono::milliseconds> durations;
+    resetList(numberL);
 
-    primeV1.reserve(MAX_NUMBER);
-
-    std::list<int> numberL1;
-    std::list<int> numberL2;
-    for (int i = 3; i < MAX_NUMBER; i++) {
-        numberL1.push_back(i);
-        numberL2.push_back(i);
-    }
-
-
-    std::cout << std::endl << "Finding primes between 2-" << MAX_NUMBER
+    // single thread
+    std::cout << std::endl << "Establishing Baseline with non-multithreading test" << std::endl;
+    std::cout << "Finding primes between 2-" << MAX_NUMBER
               << " with sequential checking: " << std::endl;
-    std::thread sProgTracker(progT, std::ref(numberL2));
+    std::thread sProgTracker(progT, std::ref(primeV), std::ref(numberL));
     auto start = std::chrono::high_resolution_clock::now();
-    isPrimeS(primeV2, numberL2);
+    isPrimeS(primeV, numberL);
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    durations.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+    //auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     sProgTracker.join();
-    std::cout << std::endl << "First 10 primes found: ";
-    for (int i = 0; i < primeV2.size() && i < 10; i++) {
-        std::cout << primeV2[i] << " ";
-    }
-    std::cout << " Largest prime found: " << primeV2.back();
-    std::cout << std::endl << "Time taken: " << duration2.count() << " milliseconds" << std::endl;
+    std::cout << std::endl << "Time taken: " << durations.back().count() << " milliseconds" << std::endl;
 
-    std::thread primeFinders[THREAD_COUNT];
-    std::cout << std::endl << "Finding primes between 2-" << MAX_NUMBER
-              << " with " << THREAD_COUNT << " threads checking in parallel: " << std::endl;
-    std::thread tProgTracker(progT, std::ref(numberL1));
-    start = std::chrono::high_resolution_clock::now();
+    // multi thread tests
+    for( THREAD_COUNT = 2; THREAD_COUNT <= THREAD_MAX; THREAD_COUNT++) {
+        resetList(numberL);
+        primeV.clear();
+        std::thread primeFinders[THREAD_COUNT];
+        std::cout << std::endl << "Finding primes between 2-" << MAX_NUMBER
+                  << " with " << THREAD_COUNT << " threads checking in parallel: " << std::endl;
+        std::thread tProgTracker(progT, std::ref(primeV), std::ref(numberL));
+        start = std::chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < THREAD_COUNT; i++) {
-        primeFinders[i] = std::thread(isPrimeT, std::ref(primeV1), std::ref(numberL1));
-    }
-    for (int i = 0; i < THREAD_COUNT; i++) {
-        primeFinders[i].join();
-    }
-    end = std::chrono::high_resolution_clock::now();
-    auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    tProgTracker.join();
-    std::cout << std::endl << "First 10 primes found: ";
-    for (int i = 0; i < primeV1.size() && i < 10; i++) {
-        std::cout << primeV1[i] << " ";
-    }
-    std::cout << " Largest prime found: " << primeV1.back();
-    std::cout << std::endl << "Time taken: " << duration1.count() << " milliseconds" << std::endl;
+        for (int i = 0; i < THREAD_COUNT; i++) {
+            primeFinders[i] = std::thread(isPrimeT, std::ref(primeV), std::ref(numberL));
+        }
+        for (int i = 0; i < THREAD_COUNT; i++) {
+            primeFinders[i].join();
+        }
+        end = std::chrono::high_resolution_clock::now();
+        durations.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+        tProgTracker.join();
+        std::cout << std::endl << "Time taken: " << durations.back().count() << " milliseconds" << std::endl;
 
-    int timeDiff = duration2.count() - duration1.count();
-    float fasterFactor = (float) duration2.count() / (float) duration1.count();
-    std::cout << "Time difference is " << timeDiff << " milliseconds or ";
-    std::cout << std::setprecision(2);
-    std::cout << fasterFactor << "x faster." << std::endl;
+        int timeDiff = durations.front().count() - durations.back().count();
+        float fasterFactor = (float) durations.front().count() / (float) durations.back().count();
+        if(timeDiff > 0) {
+            std::cout << "Time difference is " << timeDiff << " milliseconds or ";
+            std::cout << std::setprecision(2);
+            std::cout << fasterFactor << "x faster than baseline." << std::endl;
+        }
+        else std::cout << "No significant speed increase." << std::endl;
+    }
 
+    system("pause");
 }
